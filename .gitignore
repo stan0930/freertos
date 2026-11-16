@@ -1,0 +1,31 @@
+# Keil build output directories (all exercise projects)
+**/MDK-ARM/Key_hal/
+**/MDK-ARM/Objects/
+**/MDK-ARM/Listings/
+
+# Assembler listings generated next to startup source files
+**/MDK-ARM/*.lst
+
+# Keil per-user window layouts and backup files
+*.uvguix.*
+*.uvgui.*
+*.uvprojx.bak
+*.uvoptx.bak
+
+# Keil Assistant logs, locks and generated local include paths
+**/.vscode/*.log
+**/.vscode/*.log.*
+**/.vscode/c_cpp_properties.json
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# Windows and macOS metadata
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Keep source code, CubeMX .ioc/.mxproject files, Keil .uvprojx/.uvoptx,
+# startup assembly, RTE headers and DebugConfig under version control.
