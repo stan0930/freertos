@@ -1,0 +1,15 @@
+key_hal\queue.o: ..\FreeRTOS\source\queue.c
+key_hal\queue.o: E:\Keil5\ARM\ARMCC\Bin\..\include\stdlib.h
+key_hal\queue.o: E:\Keil5\ARM\ARMCC\Bin\..\include\string.h
+key_hal\queue.o: ../FreeRTOS/include/FreeRTOS.h
+key_hal\queue.o: E:\Keil5\ARM\ARMCC\Bin\..\include\stddef.h
+key_hal\queue.o: E:\Keil5\ARM\ARMCC\Bin\..\include\stdint.h
+key_hal\queue.o: ../Core/Inc/FreeRTOSConfig.h
+key_hal\queue.o: ../FreeRTOS/include/projdefs.h
+key_hal\queue.o: ../FreeRTOS/include/portable.h
+key_hal\queue.o: ../FreeRTOS/include/deprecated_definitions.h
+key_hal\queue.o: ../FreeRTOS/portable/RVDS/ARM_CM3/portmacro.h
+key_hal\queue.o: ../FreeRTOS/include/mpu_wrappers.h
+key_hal\queue.o: ../FreeRTOS/include/task.h
+key_hal\queue.o: ../FreeRTOS/include/list.h
+key_hal\queue.o: ../FreeRTOS/include/queue.h
