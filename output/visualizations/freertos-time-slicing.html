@@ -1,0 +1,132 @@
+<div id="freertos-time-slicing">
+  <style>
+    #freertos-time-slicing { color: var(--foreground); }
+    #freertos-time-slicing h3 { padding-right: 90px; margin: 0 0 16px; }
+    #freertos-time-slicing .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 12px; }
+    #freertos-time-slicing .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    #freertos-time-slicing .swatch { display: inline-block; width: 12px; height: 12px; }
+    #freertos-time-slicing .task1 { background: var(--viz-series-1); }
+    #freertos-time-slicing .task2 { background: var(--viz-series-2); }
+    #freertos-time-slicing .plot { width: 100%; }
+    #freertos-time-slicing .timeline { display: block; width: 100%; }
+    #freertos-time-slicing .timeline text { fill: var(--foreground); font-size: 12px; font-weight: 400; }
+    #freertos-time-slicing .timeline .heading { font-weight: 500; }
+    #freertos-time-slicing .control-label { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 12px; }
+    #freertos-time-slicing .detail { margin-top: 8px; }
+  </style>
+  <h3>时间片与提前切换</h3>
+  <div class="legend" aria-label="图例">
+    <span class="legend-item"><span class="swatch task1" aria-hidden="true"></span>task1</span>
+    <span class="legend-item"><span class="swatch task2" aria-hidden="true"></span>task2</span>
+    <span class="text-small text-muted">同优先级 · tick 间隔 50ms · 忽略切换耗时</span>
+  </div>
+  <div class="plot">
+    <svg class="timeline" role="img" aria-label="三个场景共用零到一百五十毫秒时间轴，比较无时间片、正常轮转和提前让出CPU。"></svg>
+  </div>
+  <div class="control-label">
+    <label class="form-label" for="freertos-yield-time">task1 主动让出 CPU 的时刻</label>
+    <output id="freertos-yield-value" for="freertos-yield-time" class="tabular-nums">20ms</output>
+  </div>
+  <input id="freertos-yield-time" class="form-range" type="range" min="5" max="45" step="5" value="20" aria-label="task1 调用 taskYIELD 的时刻，单位毫秒">
+  <div class="detail text-small" id="freertos-yield-detail" aria-live="polite"></div>
+  <script>
+    (() => {
+      const root = document.getElementById('freertos-time-slicing');
+      const plot = root.querySelector('.plot');
+      const svg = root.querySelector('.timeline');
+      const slider = root.querySelector('#freertos-yield-time');
+      const value = root.querySelector('#freertos-yield-value');
+      const detail = root.querySelector('#freertos-yield-detail');
+      const namespace = 'http://www.w3.org/2000/svg';
+      const colors = ['var(--viz-series-1)', 'var(--viz-series-2)'];
+      let yieldAt = 20;
+
+      function segments(mode, at) {
+        if (mode === 'none') return [[0, 150, 0]];
+        if (mode === 'tick') return [[0, 50, 0], [50, 100, 1], [100, 150, 0]];
+        return [[0, at, 0], [at, 50, 1], [50, 100, 0], [100, 150, 1]];
+      }
+
+      function node(tag, attributes, content) {
+        const element = document.createElementNS(namespace, tag);
+        for (const [key, attribute] of Object.entries(attributes || {})) element.setAttribute(key, String(attribute));
+        if (content !== undefined) element.textContent = content;
+        svg.appendChild(element);
+        return element;
+      }
+
+      function draw() {
+        const width = Math.max(280, Math.round(plot.getBoundingClientRect().width));
+        const left = 12;
+        const right = width - 12;
+        const x = time => left + (right - left) * time / 150;
+        svg.replaceChildren();
+        svg.setAttribute('viewBox', `0 0 ${width} 362`);
+        svg.setAttribute('height', '362');
+        node('title', {}, '时间片提供定期轮换机会，任务也能提前主动让出 CPU');
+        node('desc', {}, `两个同优先级任务，tick 周期50毫秒。无时间片且无主动让出时，task1持续执行。开启时间片后，每个tick轮换。在第三行task1于${yieldAt}毫秒调用taskYIELD，task2马上执行，但50毫秒的下一个tick不变，task2这次运行${50-yieldAt}毫秒后轮换。示意忽略中断、临界区与切换耗时。`);
+        node('text', {x: left, y: 15, class: 'heading'}, '时间 / ms（固定的 SysTick 节拍）');
+        node('line', {x1: left, y1: 47, x2: right, y2: 47, stroke: 'var(--border)'});
+        for (const tick of [0, 50, 100, 150]) {
+          node('text', {x: x(tick), y: 37, 'text-anchor': tick === 0 ? 'start' : tick === 150 ? 'end' : 'middle'}, String(tick));
+          node('line', {x1: x(tick), y1: 43, x2: x(tick), y2: 53, stroke: 'var(--foreground)'});
+        }
+
+        const rows = [
+          {mode: 'none', label: '① 关闭时间片 · 两任务一直就绪', y: 92},
+          {mode: 'tick', label: '② 开启时间片 · 两任务一直就绪', y: 180},
+          {mode: 'yield', label: '③ 开启时间片 · task1 提前让出', y: 268}
+        ];
+        for (const row of rows) {
+          node('text', {x: left, y: row.y - 12, class: 'heading'}, row.label);
+          node('rect', {x: left, y: row.y, width: right-left, height: 34, fill: 'var(--muted)'});
+          const blocks = segments(row.mode, yieldAt);
+          for (const [start, end, task] of blocks) {
+            const block = node('rect', {
+              x: x(start), y: row.y, width: x(end)-x(start), height: 34,
+              fill: colors[task], 'fill-opacity': '0.25',
+              'data-tooltip': `task${task+1}：${start}–${end}ms，运行${end-start}ms`
+            });
+            block.setAttribute('aria-label', `task${task+1}，${start}到${end}毫秒`);
+            const blockWidth = x(end)-x(start);
+            if (blockWidth >= 23) {
+              node('text', {x: (x(start)+x(end))/2, y: row.y+21, 'text-anchor': 'middle'}, blockWidth < 60 ? `T${task+1}` : `task${task+1}`);
+            }
+          }
+          if (row.mode !== 'none') {
+            for (const boundary of blocks.slice(1).map(block => block[0])) {
+              node('circle', {cx: x(boundary), cy: row.y+40, r: 3, fill: 'var(--foreground)'});
+            }
+          }
+          if (row.mode === 'yield') {
+            node('line', {x1: x(yieldAt), y1: row.y-4, x2: x(yieldAt), y2: row.y+34, stroke: 'var(--foreground)'});
+            node('text', {x: left, y: row.y+65}, `${yieldAt}ms：task1 调用 taskYIELD()`);
+            node('text', {x: left, y: row.y+86}, '● PendSV 完成切换（示意为瞬时）');
+          }
+        }
+        value.textContent = `${yieldAt}ms`;
+        detail.textContent = `第三行：task2 运行 ${50-yieldAt}ms，就到 50ms 的 tick；换任务不会重置节拍。`;
+        slider.value = String(yieldAt);
+        slider.setAttribute('aria-valuetext', `${yieldAt}毫秒主动让出CPU`);
+      }
+
+      function applyState(state) {
+        const saved = state && state.modelContent && state.modelContent.yieldAt;
+        if (Number.isFinite(saved) && saved >= 5 && saved <= 45 && saved % 5 === 0) yieldAt = saved;
+        draw();
+      }
+
+      slider.addEventListener('input', () => { yieldAt = Number(slider.value); draw(); });
+      slider.addEventListener('change', () => {
+        if (window.openai && window.openai.setWidgetState) {
+          window.openai.setWidgetState({modelContent: {yieldAt, tickMs: 50}, privateContent: null}).catch(() => {});
+        }
+      });
+      window.addEventListener('openai:set_globals', event => {
+        if (event.detail && event.detail.globals && event.detail.globals.widgetState) applyState(event.detail.globals.widgetState);
+      });
+      new ResizeObserver(draw).observe(plot);
+      applyState(window.openai && window.openai.widgetState);
+    })();
+  </script>
+</div>
