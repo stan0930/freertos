@@ -92,7 +92,7 @@ void start_task(void * pvParameters)
  * @param pvParameters 
  */
 void task1(void *pvParameters){
-
+    uint8_t key = 0;
     while(1){
         printf("task1ÔËÐÐ...\r\n");
         LED_Toggle(LED1_Pin);
